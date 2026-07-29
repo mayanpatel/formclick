@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111111">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <title>FormClick</title>
+    <link rel="stylesheet" href="styles.css?v=iteration-2o">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="status-band" aria-labelledby="app-title">
+        <div class="brand-lockup">
+          <p class="eyebrow">Form-aware metronome</p>
+          <h1 id="app-title">FormClick</h1>
+        </div>
+
+        <div class="current-readout">
+          <div>
+            <span class="readout-label">Section</span>
+            <strong id="current-section">A</strong>
+          </div>
+          <div>
+            <span class="readout-label">Bar</span>
+            <strong id="current-bar">1</strong>
+          </div>
+          <div>
+            <span class="readout-label">Beat</span>
+            <strong id="current-beat">1</strong>
+          </div>
+          <div>
+            <span class="readout-label">Chorus</span>
+            <strong id="current-chorus">1</strong>
+          </div>
+        </div>
+
+        <div class="next-section">
+          <span class="readout-label">Next</span>
+          <strong id="next-section">A in 8</strong>
+        </div>
+      </section>
+
+      <section class="control-layout" aria-label="Metronome controls">
+        <div class="transport-panel">
+          <button id="start-stop" class="transport-button" type="button" aria-label="Start metronome">
+            <span class="transport-icon" aria-hidden="true"></span>
+            <span id="transport-label">Start</span>
+          </button>
+
+          <div class="tempo-cluster">
+            <label for="bpm">BPM</label>
+            <div class="tempo-row">
+              <button id="bpm-down" class="icon-button" type="button" aria-label="Decrease BPM">−</button>
+              <input id="bpm" type="text" inputmode="numeric" pattern="[0-9]*" value="140" aria-label="BPM">
+              <button id="bpm-up" class="icon-button" type="button" aria-label="Increase BPM">+</button>
+            </div>
+            <input id="bpm-range" type="range" min="30" max="320" step="1" value="140" aria-label="BPM slider">
+            <button id="tap-tempo" class="secondary-button" type="button">Tap Tempo</button>
+          </div>
+        </div>
+
+        <details class="settings-panel" open>
+          <summary>
+            <span>Metronome settings</span>
+            <strong id="settings-summary">2 &amp; 4 / Cue 8</strong>
+          </summary>
+          <div class="settings-grid">
+          <label>
+            Form
+            <select id="form-preset">
+              <option value="aaba32">32-bar AABA</option>
+              <option value="abac32">32-bar ABAC</option>
+              <option value="blues12">12-bar Blues</option>
+              <option value="rhythm32">Rhythm Changes</option>
+              <option value="sixteen16">16-bar Tune</option>
+              <option value="vamp8">Modal/Vamp</option>
+              <option value="customUser">Custom form</option>
+            </select>
+          </label>
+
+          <label>
+            Time
+            <select id="time-signature">
+              <option value="4">4/4</option>
+              <option value="3">3/4</option>
+              <option value="5">5/4</option>
+              <option value="7">7/4</option>
+            </select>
+          </label>
+
+          <label>
+            Click
+            <select id="click-mode">
+              <option value="quarter">Quarter notes</option>
+              <option value="twoFour" selected>2 &amp; 4</option>
+              <option value="beatOne">Beat 1 only</option>
+              <option value="barline">Barline only</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+
+          <label>
+            Count-in
+            <select id="count-in">
+              <option value="0">Off</option>
+              <option value="1" selected>1 bar</option>
+              <option value="2">2 bars</option>
+            </select>
+          </label>
+
+          <label>
+            Cue
+            <select id="cue-interval">
+              <option value="off">Off</option>
+              <option value="1">Every bar</option>
+              <option value="2">Every 2 bars</option>
+              <option value="3">Every 3 bars</option>
+              <option value="4">Every 4 bars</option>
+              <option value="8" selected>Every 8 bars</option>
+              <option value="12">Every 12 bars</option>
+              <option value="16">Every 16 bars</option>
+              <option value="32">Every 32 bars</option>
+              <option value="chorus">Every chorus</option>
+            </select>
+          </label>
+
+          <label class="toggle-row">
+            <input id="chorus-cue" type="checkbox" checked>
+            <span>Top-of-chorus bell</span>
+          </label>
+          </div>
+        </details>
+
+        <details class="mixer-panel tool-disclosure">
+          <summary>Mixer</summary>
+          <div class="mixer-grid">
+            <label>
+              Click volume
+              <input id="click-volume" type="range" min="0" max="100" step="1" value="70">
+            </label>
+            <label>
+              Cue volume
+              <input id="cue-volume" type="range" min="0" max="100" step="1" value="85">
+            </label>
+            <label>
+              Bass volume
+              <input id="mixer-bass-volume" type="range" min="0" max="100" step="1" value="80">
+            </label>
+          </div>
+        </details>
+      </section>
+
+      <section class="form-stage" aria-label="Jazz form map">
+        <div class="form-header">
+          <div>
+            <p class="eyebrow">Current form</p>
+            <h2 id="form-name">32-bar AABA</h2>
+          </div>
+          <div class="form-meta">
+            <span class="state-chip" id="loop-summary" hidden>Loop off</span>
+            <span class="state-chip" id="bass-summary" hidden>Bass off</span>
+            <span class="state-chip" id="trading-summary" hidden>Trading off</span>
+            <span class="state-chip" id="map-summary" hidden>Map off</span>
+            <span class="phrase-chip" id="phrase-status">Phrase 1 of 4</span>
+            <button id="solo-toggle" class="secondary-button compact-button" type="button">Solo view</button>
+          </div>
+        </div>
+        <div id="form-grid" class="form-grid"></div>
+
+        <section class="practice-tools-panel" aria-labelledby="practice-tools-title">
+          <div class="tool-group-header">
+            <h3 id="practice-tools-title">Practice tools</h3>
+            <strong id="practice-status">Normal</strong>
+          </div>
+          <div class="practice-tools-grid">
+            <label>
+              Section loop
+              <select id="section-loop">
+                <option value="off" selected>Off</option>
+              </select>
+            </label>
+
+            <label>
+              Trading mode
+              <select id="practice-mode">
+                <option value="normal" selected>Normal</option>
+              </select>
+            </label>
+
+            <div class="practice-control">
+              <div class="field-label-with-help">
+                <label for="trading-bass">Trading bass</label>
+                <span class="tooltip-trigger">
+                  <button class="info-button" type="button" aria-label="Explain trading bass" aria-describedby="trading-bass-help">i</button>
+                  <span id="trading-bass-help" class="tooltip-content" role="tooltip">Full form keeps bass playing during your turn. Band only mutes it during your turn.</span>
+                </span>
+              </div>
+              <select id="trading-bass">
+                <option value="full" selected>Full form</option>
+                <option value="band">Band only</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <details class="phrase-map-panel tool-disclosure" aria-label="Phrase map tools">
+          <summary>
+            <span>Phrase map</span>
+            <strong id="phrase-map-status">Off</strong>
+          </summary>
+          <div class="phrase-map-body">
+            <label class="toggle-row">
+              <input id="phrase-map-enabled" type="checkbox">
+              <span>Show map and play cues</span>
+            </label>
+
+            <div class="phrase-editor-grid">
+              <label>
+                Start bar
+                <input id="phrase-start-bar" type="number" min="1" step="1" value="1">
+              </label>
+
+              <label>
+                Start beat
+                <select id="phrase-start-beat">
+                  <option value="1" selected>1</option>
+                </select>
+              </label>
+
+              <label>
+                End bar
+                <input id="phrase-end-bar" type="number" min="1" step="1" value="1">
+              </label>
+
+              <label>
+                End beat
+                <select id="phrase-end-beat">
+                  <option value="4" selected>4</option>
+                </select>
+              </label>
+
+              <fieldset class="color-swatches">
+                <legend>Colour</legend>
+                <label><input type="radio" name="phrase-color" value="blue" checked><span class="swatch is-blue">Blue</span></label>
+                <label><input type="radio" name="phrase-color" value="green"><span class="swatch is-green">Green</span></label>
+                <label><input type="radio" name="phrase-color" value="gold"><span class="swatch is-gold">Gold</span></label>
+              </fieldset>
+
+              <label class="toggle-row">
+                <input id="phrase-cue-in" type="checkbox" checked>
+                <span>Cue in</span>
+              </label>
+
+              <label class="toggle-row">
+                <input id="phrase-cue-out" type="checkbox" checked>
+                <span>Cue out</span>
+              </label>
+
+              <button id="save-phrase" class="secondary-button" type="button">Add range</button>
+              <button id="clear-phrases" class="secondary-button danger-button" type="button">Clear all</button>
+            </div>
+
+            <div id="phrase-ranges" class="phrase-ranges" aria-label="Mapped phrase ranges"></div>
+          </div>
+        </details>
+
+        <div class="song-preset-panel" aria-label="Song preset editor">
+          <label>
+            Song
+            <select id="song-preset">
+              <option value="">Custom form</option>
+            </select>
+          </label>
+
+          <div>
+            <span class="readout-label">Key</span>
+            <strong id="song-key">Custom</strong>
+          </div>
+        </div>
+
+        <section class="session-setup-section" aria-labelledby="session-setup-title">
+          <div class="tool-group-header">
+            <h3 id="session-setup-title">Song setup</h3>
+          </div>
+
+          <details class="song-editor-panel tool-disclosure">
+            <summary>
+              <span>Song editor</span>
+              <strong id="song-editor-status">New</strong>
+            </summary>
+            <div class="song-editor-grid">
+              <label>
+                Title
+                <input id="song-editor-title" type="text" placeholder="My tune">
+              </label>
+              <label>
+                Key
+                <input id="song-editor-key" type="text" placeholder="C minor">
+              </label>
+              <label>
+                Form
+                <select id="song-editor-form">
+                  <option value="aaba32">32-bar AABA</option>
+                  <option value="abac32">32-bar ABAC</option>
+                  <option value="blues12">12-bar Blues</option>
+                  <option value="rhythm32">Rhythm Changes</option>
+                  <option value="sixteen16">16-bar Tune</option>
+                  <option value="vamp8">Modal/Vamp</option>
+                  <option value="customUser">Custom form</option>
+                </select>
+              </label>
+              <label id="song-editor-sections-wrap" class="song-sections-field" hidden>
+                Sections
+                <input id="song-editor-sections" type="text" value="A:8, A:8, B:8, A:8" aria-describedby="song-editor-hint">
+              </label>
+              <span id="song-editor-hint" class="field-hint" hidden>Use label:bars, separated by commas.</span>
+              <div class="song-editor-actions">
+                <button id="use-song-draft" class="secondary-button" type="button">Use now</button>
+                <button id="save-song" class="secondary-button" type="button">Save song</button>
+                <button id="delete-song" class="secondary-button danger-button" type="button" disabled>Delete</button>
+              </div>
+            </div>
+          </details>
+
+        <div class="root-editor">
+          <label class="toggle-row root-edit-toggle">
+            <input id="root-edit-enabled" type="checkbox">
+            <span>Bass editor</span>
+          </label>
+
+          <p id="bass-editor-hint" class="editor-hint" hidden>Click a bar in the sequencer, then choose its bass note below.</p>
+
+          <div id="bar-root-editor" class="bar-root-editor" hidden>
+            <div>
+              <p class="eyebrow">Selected bar</p>
+              <h3 id="selected-bar-title">Bar 1</h3>
+            </div>
+
+            <label>
+              Whole bar
+              <select id="bar-root-primary">
+                <option value="C1" selected>C</option>
+                <option value="Db1">Db</option>
+                <option value="D1">D</option>
+                <option value="Eb1">Eb</option>
+                <option value="E1">E</option>
+                <option value="F1">F</option>
+                <option value="Gb1">Gb</option>
+                <option value="G1">G</option>
+                <option value="Ab1">Ab</option>
+                <option value="A1">A</option>
+                <option value="Bb1">Bb</option>
+                <option value="B1">B</option>
+              </select>
+            </label>
+
+            <label class="toggle-row">
+              <input id="bar-root-split" type="checkbox">
+              <span>Split half bar</span>
+            </label>
+
+            <label id="bar-root-secondary-wrap">
+              Second half
+              <select id="bar-root-secondary">
+                <option value="C1" selected>C</option>
+                <option value="Db1">Db</option>
+                <option value="D1">D</option>
+                <option value="Eb1">Eb</option>
+                <option value="E1">E</option>
+                <option value="F1">F</option>
+                <option value="Gb1">Gb</option>
+                <option value="G1">G</option>
+                <option value="Ab1">Ab</option>
+                <option value="A1">A</option>
+                <option value="Bb1">Bb</option>
+                <option value="B1">B</option>
+              </select>
+            </label>
+
+            <button id="save-bar-root" class="secondary-button" type="button">Set</button>
+            <button id="clear-bar-root" class="secondary-button" type="button">Clear</button>
+          </div>
+
+          <div id="bass-settings-panel" class="bass-settings-panel" aria-label="Bass controls" hidden>
+            <label>
+              Bass style
+              <select id="bass-style">
+                <option value="ballad" selected>Whole notes</option>
+                <option value="walking">Walking bass</option>
+                <option value="jazz">Jazz quarter pulse</option>
+              </select>
+            </label>
+
+            <label>
+              Bass octave
+              <select id="bass-octave">
+                <option value="-12">-1 octave</option>
+                <option value="0" selected>Normal</option>
+                <option value="12">+1 octave</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        </section>
+      </section>
+      <div id="runtime-status" class="sr-only" aria-live="polite">Ready</div>
+    </main>
+
+    <script src="core.js?v=iteration-2o"></script>
+    <script src="app.js?v=iteration-2o"></script>
+  </body>
+</html>
