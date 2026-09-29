@@ -28,6 +28,8 @@
   const els = {
     bpm: document.querySelector("#bpm"),
     play: document.querySelector("#play"),
+    soloPart: document.querySelector("#solo-part"),
+    longPart: document.querySelector("#long-part"),
     readout: document.querySelector("#readout"),
     turn: document.querySelector("#turn"),
     bar: document.querySelector("#bar"),
@@ -52,14 +54,17 @@
   let generation = 0;
   let bpm = 136;
   let beatCounter = 0;
+  let bassPart = "solo";
+  let displayedBeat = 0;
 
   function draw(absoluteBeat) {
     const safeBeat = Math.max(0, absoluteBeat);
+    displayedBeat = safeBeat;
     const beatInChorus = safeBeat % chorusBeats;
     const barIndex = Math.floor(beatInChorus / barBeats);
     const beatInBar = beatInChorus % barBeats;
     const backing = chart.isBackingBar(barIndex);
-    els.turn.textContent = backing ? "Backing solo" : "Your solo";
+    els.turn.textContent = backing ? (bassPart === "solo" ? "Backing solo" : "Backing bass") : "Your solo";
     els.readout.classList.toggle("is-yours", !backing);
     els.bar.textContent = String(barIndex + 1);
     els.chord.textContent = chart.CHORDS[barIndex].symbol;
@@ -83,8 +88,18 @@
       const toneTicks = Math.round(note.ticks * transport.PPQ / take.midi.header.ppq);
       const duration = note.durationTicks / take.midi.header.ppq * 60 / bpm;
       transport.schedule((time) => {
-        if (runGeneration === generation) {
+        if (runGeneration === generation && bassPart === "solo") {
           sampler.triggerAttackRelease(note.name, duration, time, note.velocity);
+        }
+      }, `${toneTicks}i`);
+    });
+    chart.CHORDS.forEach((chord, barIndex) => {
+      if (!chart.isBackingBar(barIndex)) return;
+      const toneTicks = barIndex * barBeats * transport.PPQ;
+      const duration = 3.8 * 60 / bpm;
+      transport.schedule((time) => {
+        if (runGeneration === generation && bassPart === "long") {
+          sampler.triggerAttackRelease(`${chord.root}2`, duration, time, 0.86);
         }
       }, `${toneTicks}i`);
     });
@@ -142,7 +157,7 @@
       playing = true;
       els.play.textContent = "Stop";
       els.bpm.disabled = true;
-      els.status.textContent = "Playing MIDI take";
+      els.status.textContent = bassPart === "solo" ? "Playing solo phrases" : "Playing long notes";
     } catch (error) {
       stop("Audio unavailable. Press Start again to retry.");
     } finally {
@@ -151,6 +166,20 @@
     }
   }
 
+  function selectPart(part) {
+    if (bassPart === part) return;
+    bassPart = part;
+    els.soloPart.setAttribute("aria-pressed", String(part === "solo"));
+    els.longPart.setAttribute("aria-pressed", String(part === "long"));
+    if (playing && sampler) sampler.releaseAll();
+    els.status.textContent = playing
+      ? `${part === "solo" ? "Solo phrases" : "Long notes"} on next backing note`
+      : `${part === "solo" ? "Solo phrases" : "Long notes"} ready`;
+    draw(displayedBeat);
+  }
+
+  els.soloPart.addEventListener("click", () => selectPart("solo"));
+  els.longPart.addEventListener("click", () => selectPart("long"));
   els.play.addEventListener("click", () => playing ? stop() : start());
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && (playing || starting)) stop("Paused in background");

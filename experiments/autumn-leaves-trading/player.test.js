@@ -53,17 +53,18 @@ function fakeElement() {
     value: "",
     children: [],
     listeners: {},
+    attributes: {},
     classList: { toggle() {} },
     append(child) { this.children.push(child); },
     addEventListener(name, listener) { this.listeners[name] = listener; },
-    setAttribute() {},
+    setAttribute(name, value) { this.attributes[name] = value; },
     click() { this.listeners.click(); }
   };
 }
 
 async function testPlayback() {
   const elements = Object.fromEntries(
-    ["bpm", "play", "readout", "turn", "bar", "chord", "chorus", "beat-dots", "grid", "status"]
+    ["bpm", "play", "solo-part", "long-part", "readout", "turn", "bar", "chord", "chorus", "beat-dots", "grid", "status"]
       .map((id) => [id, fakeElement()])
   );
   elements.bpm.value = "136";
@@ -110,12 +111,33 @@ async function testPlayback() {
   assert.equal(elements.play.textContent, "Stop");
   assert.equal(elements.bpm.disabled, true);
   assert.equal(transport.loopEnd, "32m");
-  assert.equal(scheduled.length, notes.length);
+  assert.equal(scheduled.length, notes.length + 16);
+  assert.deepEqual(scheduled.slice(notes.length).map((event) => event.position),
+    Array.from({ length: 32 }, (_, bar) => bar)
+      .filter(isBackingBar)
+      .map((bar) => `${bar * 4 * transport.PPQ}i`));
   assert.equal(Object.keys(sampler.options.urls).length, 5);
   scheduled[0].callback(0.1);
   assert.equal(played[0][0], notes[0].name);
   transport.beatCallback(0.1);
   assert.equal(elements.bar.textContent, "1");
+  elements["long-part"].click();
+  assert.equal(elements["long-part"].attributes["aria-pressed"], "true");
+  assert.equal(elements["solo-part"].attributes["aria-pressed"], "false");
+  assert.equal(elements.turn.textContent, "Backing bass");
+  assert.equal(elements.bar.textContent, "1");
+  const playedBeforeLong = played.length;
+  scheduled[0].callback(0.2);
+  assert.equal(played.length, playedBeforeLong);
+  scheduled[notes.length].callback(0.2);
+  assert.equal(played.at(-1)[0], "C2");
+  assert.ok(Math.abs(played.at(-1)[1] - 3.8 * 60 / 136) < .001);
+  elements["solo-part"].click();
+  const playedBeforeSolo = played.length;
+  scheduled[notes.length].callback(0.3);
+  assert.equal(played.length, playedBeforeSolo);
+  scheduled[0].callback(0.3);
+  assert.equal(played.at(-1)[0], notes[0].name);
   elements.play.click();
   assert.equal(transport.started, false);
   assert.equal(scheduled.length, 0);

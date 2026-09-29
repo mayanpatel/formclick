@@ -21,6 +21,10 @@
     .tempo input { width: 90px; height: 48px; border: 1px solid #53645a; border-radius: 4px; background: #1c2620; color: #fff; padding: 0 12px; font-size: 1.25rem; }
     .controls button { min-height: 48px; border-radius: 4px; border: 1px solid #53645a; padding: 0 19px; font-weight: 750; }
     #play { min-width: 132px; background: #e5b755; border-color: #e5b755; color: #101513; }
+    .part-switch { display: flex; flex: 1 1 270px; max-width: 340px; min-height: 48px; border: 1px solid #53645a; border-radius: 4px; overflow: hidden; }
+    .part-switch button { flex: 1; min-width: 0; border: 0; border-radius: 0; background: #1c2620; color: #f2f2ec; padding: 0 10px; }
+    .part-switch button + button { border-left: 1px solid #53645a; }
+    .part-switch button[aria-pressed="true"] { background: #54c6a3; color: #101513; }
     button:disabled { cursor: not-allowed; opacity: .5; }
     .readout { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(76px, 110px)); gap: 12px; align-items: end; border-top: 1px solid #35403b; border-bottom: 1px solid #35403b; padding: 18px 0; }
     .readout small { display: block; color: #a9b5ad; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
@@ -58,13 +62,17 @@
   <main>
     <header>
       <h1>Autumn Leaves</h1>
-      <p class="subtitle">Original bluesy-bop bass phrases · 32 bars · trading fours</p>
+      <p class="subtitle">32 bars · trading fours · G minor</p>
     </header>
 
     <div class="controls">
       <label class="tempo" for="bpm">Tempo
         <input id="bpm" type="number" inputmode="numeric" min="60" max="240" step="1" value="136">
       </label>
+      <div class="part-switch" role="group" aria-label="Bass part">
+        <button id="solo-part" type="button" aria-pressed="true">Solo phrases</button>
+        <button id="long-part" type="button" aria-pressed="false">Long notes</button>
+      </div>
       <button id="play" type="button">Start</button>
     </div>
 
@@ -86,6 +94,6 @@
   <script src="chart.js"></script>
   <script src="samples.js"></script>
   <script src="midi-data.js?v=2"></script>
-  <script src="player.js"></script>
+  <script src="player.js?v=2"></script>
 </body>
 </html>
