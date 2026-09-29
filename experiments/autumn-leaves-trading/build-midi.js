@@ -1,66 +1,63 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { Midi } = require("./vendor/Midi.js");
-const { CHORDS: chords, rootMidi } = require("./chart.js");
+const { CHORDS, isBackingBar } = require("./chart.js");
 
-const phraseBars = [0, 8, 16, 24];
-const phrasePatterns = [
+const pitchClasses = { C: 0, D: 2, Eb: 3, E: 4, F: 5, "F#": 6, G: 7, A: 9, Bb: 10, "C#": 1 };
+const phraseStarts = [0, 8, 16, 24];
+
+// Original phrases written for four-bar turns, not clipped from a continuous solo.
+const phrases = [
   [
-    [[0, "root", 1.12, .91], [1.36, "third", .48, .67], [2.14, "fifth", .7, .78], [3.28, "seventh", .42, .56]],
-    [[.08, "third", .83, .81], [1.22, "root", .4, .65], [1.92, "seventh", .54, .7], [2.98, "approach", .52, .53]],
-    [[0, "root", .92, .92], [1.28, "third", .42, .65], [2.08, "fifth", .48, .75], [2.84, "seventh", .64, .61]],
-    [[.05, "third", 1.1, .83], [1.47, "fifth", .56, .63], [2.35, "root", 1.3, .85]]
+    [[0, "C3", .88, .91], [1.45, "Eb3", .28, .64], [2, "G3", .56, .79], [2.72, "F3", .27, .58], [3.18, "Eb3", .46, .69]],
+    [[0, "A2", .78, .86], [1.48, "C3", .32, .65], [2.02, "Eb3", .68, .76], [3.02, "C3", .29, .57], [3.48, "E3", .22, .51]],
+    [[0, "F3", .87, .89], [1.47, "D3", .34, .67], [2.02, "Bb2", .73, .75], [3.04, "A2", .54, .57]],
+    [[0, "G2", .77, .84], [1.43, "Bb2", .31, .6], [2.07, "D3", .36, .71], [2.8, "Eb3", .91, .88]]
   ],
   [
-    [[0, "third", .75, .8], [1.05, "fifth", .38, .6], [1.67, "seventh", .58, .74], [2.7, "root", .91, .78]],
-    [[.16, "root", 1.0, .88], [1.55, "third", .4, .7], [2.2, "fifth", .43, .62], [3.02, "approach", .47, .51]],
-    [[0, "seventh", .71, .83], [1.14, "third", .65, .68], [2.27, "root", .52, .82], [3.18, "fifth", .47, .57]],
-    [[.04, "fifth", .95, .79], [1.39, "third", .55, .69], [2.26, "root", 1.4, .88]]
+    [[.4, "G2", .43, .7], [1.03, "Bb2", .62, .82], [2.03, "C3", .41, .71], [2.68, "Eb3", .3, .68], [3.31, "D3", .37, .59]],
+    [[0, "C3", .74, .83], [1.42, "Eb3", .32, .63], [2.03, "E3", .28, .53], [2.6, "F3", .48, .79], [3.3, "C3", .42, .61]],
+    [[.05, "D3", 1.08, .86], [1.56, "F3", .28, .66], [2.12, "A3", .45, .83], [2.75, "G3", .28, .57], [3.24, "F3", .44, .71]],
+    [[0, "Eb3", .81, .9], [1.48, "Bb2", .29, .64], [2.02, "G2", .85, .77], [3.12, "C3", .68, .73]]
   ],
   [
-    [[0, "root", .97, .9], [1.41, "third", .39, .66], [2.12, "fifth", .55, .73], [3.11, "seventh", .57, .62]],
-    [[.08, "third", .76, .82], [1.2, "fifth", .38, .63], [1.82, "seventh", .53, .69], [2.83, "approach", .58, .57]],
-    [[0, "root", 1.17, .93], [1.53, "fifth", .49, .65], [2.28, "third", .56, .72], [3.2, "seventh", .43, .57]],
-    [[.06, "third", .78, .77], [1.2, "fifth", .46, .64], [2.13, "root", 1.54, .9]]
+    [[0, "A2", .84, .9], [1.44, "C3", .31, .67], [2.02, "Eb3", .55, .74], [2.72, "G3", .28, .75], [3.32, "F#3", .35, .59]],
+    [[0, "F#3", .76, .88], [1.46, "A3", .31, .72], [2.05, "C3", .53, .77], [2.79, "A2", .29, .58], [3.32, "F#2", .39, .66]],
+    [[0, "G2", 1.12, .93], [1.62, "Bb2", .39, .63], [2.33, "D3", .37, .75], [3.09, "F3", .45, .68]],
+    [[0, "G3", 1.04, .86], [1.55, "F3", .32, .61], [2.15, "D3", .42, .76], [2.86, "Bb2", .29, .58], [3.31, "G2", .54, .88]]
   ],
   [
-    [[.04, "third", .91, .82], [1.27, "root", .52, .67], [2.18, "seventh", .62, .72], [3.22, "fifth", .43, .55]],
-    [[0, "root", .85, .89], [1.15, "third", .47, .72], [1.99, "seventh", .49, .63], [2.9, "approach", .63, .51]],
-    [[.05, "third", .95, .84], [1.48, "fifth", .5, .67], [2.28, "root", .46, .77], [3.14, "seventh", .54, .57]],
-    [[0, "root", .9, .91], [1.27, "third", .55, .67], [2.21, "fifth", 1.36, .79]]
+    [[.55, "A2", .56, .79], [1.49, "C3", .31, .63], [2.12, "Eb3", .65, .82], [3.14, "C3", .43, .6]],
+    [[0, "F#2", .76, .89], [1.42, "A2", .34, .65], [2.06, "C3", .53, .75], [2.78, "C#3", .29, .53], [3.31, "D3", .44, .77]],
+    [[0, "G2", .88, .91], [1.38, "Bb2", .35, .66], [2.04, "D3", .79, .8], [3.34, "F3", .32, .57]],
+    [[0, "Eb3", .91, .85], [1.48, "G3", .32, .7], [2.16, "Bb2", .49, .75], [3.03, "G2", .72, .89]]
   ]
 ];
 
-function nearestPitch(midi, previous) {
-  return [midi - 12, midi, midi + 12]
-    .filter((candidate) => candidate >= 36 && candidate <= 57)
-    .sort((a, b) => Math.abs(a - previous) - Math.abs(b - previous))[0];
+function noteToMidi(name) {
+  const match = /^([A-G](?:b|#)?)([0-9])$/.exec(name);
+  if (!match || pitchClasses[match[1]] === undefined) throw new Error(`Unsupported pitch: ${name}`);
+  return (Number(match[2]) + 1) * 12 + pitchClasses[match[1]];
 }
 
 const midi = new Midi();
-midi.name = "Autumn Leaves trading fours - original bass study";
+midi.name = "Autumn Leaves trading fours - original bebop bass study";
 midi.header.setTempo(136);
 const track = midi.addTrack();
-track.name = "Acoustic bass solo";
+track.name = "Original acoustic bass solo";
 track.instrument.number = 32;
 
-phraseBars.forEach((startBar, phraseIndex) => {
-  let previous = rootMidi(chords[startBar].root);
-  phrasePatterns[phraseIndex].forEach((notes, barInPhrase) => {
-    const bar = startBar + barInPhrase;
-    const chord = chords[bar];
-    const nextRoot = rootMidi(chords[(bar + 1) % chords.length].root);
-    notes.forEach(([offset, role, duration, velocity]) => {
-      const degree = { root: 0, third: 1, fifth: 2, seventh: 3 }[role];
-      const target = role === "approach"
-        ? nextRoot - 1
-        : rootMidi(chord.root) + chord.intervals[degree];
-      const pitch = nearestPitch(target, previous);
-      previous = pitch;
+phrases.forEach((phrase, phraseIndex) => {
+  const firstBar = phraseStarts[phraseIndex];
+  phrase.forEach((barNotes, barOffset) => {
+    const bar = firstBar + barOffset;
+    if (!isBackingBar(bar) || !CHORDS[bar]) throw new Error(`Invalid backing bar ${bar + 1}`);
+    barNotes.forEach(([beat, name, length, velocity]) => {
+      if (beat < 0 || beat + length >= 4) throw new Error(`Note crosses bar ${bar + 1}`);
       track.addNote({
-        midi: pitch,
-        ticks: Math.round((bar * 4 + offset) * midi.header.ppq),
-        durationTicks: Math.round(duration * midi.header.ppq),
+        midi: noteToMidi(name),
+        ticks: Math.round((bar * 4 + beat) * midi.header.ppq),
+        durationTicks: Math.round(length * midi.header.ppq),
         velocity
       });
     });
@@ -68,9 +65,8 @@ phraseBars.forEach((startBar, phraseIndex) => {
 });
 
 const bytes = Buffer.from(midi.toArray());
-const folder = __dirname;
-fs.writeFileSync(path.join(folder, "autumn-leaves-trading.mid"), bytes);
-fs.writeFileSync(path.join(folder, "midi-data.js"),
+fs.writeFileSync(path.join(__dirname, "autumn-leaves-trading.mid"), bytes);
+fs.writeFileSync(path.join(__dirname, "midi-data.js"),
   "// Original four-bar bass phrases for this experiment. Generated by build-midi.js.\n" +
   `const MIDI_BASE64 = "${bytes.toString("base64")}";\n`
 );

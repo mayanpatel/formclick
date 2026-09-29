@@ -9,8 +9,18 @@ const midi = new Midi(bytes);
 const notes = midi.tracks[0].notes;
 assert.equal(CHORDS.length, 32);
 assert.equal(midi.tracks.length, 1);
-assert.equal(notes.length, 60);
+assert.equal(notes.length, 73);
 assert.ok(Math.abs(midi.header.tempos[0].bpm - 136) < .01);
+
+const phraseStarts = [0, 8, 16, 24];
+assert.deepEqual(phraseStarts.map((bar) => notes.filter((note) => {
+  const beat = note.ticks / midi.header.ppq;
+  return beat >= bar * 4 && beat < (bar + 4) * 4;
+}).length), [18, 19, 19, 17]);
+assert.deepEqual(phraseStarts.map((bar) => {
+  const first = notes.find((note) => note.ticks / midi.header.ppq >= bar * 4);
+  return Math.round((first.ticks / midi.header.ppq - bar * 4) * 100) / 100;
+}), [0, .4, 0, .55]);
 
 for (const note of notes) {
   const startBeat = note.ticks / midi.header.ppq;
@@ -19,7 +29,14 @@ for (const note of notes) {
   const phraseEnd = (Math.floor(bar / 4) + 1) * 16;
   assert.ok(isBackingBar(bar), `MIDI note enters Your solo at bar ${bar + 1}`);
   assert.ok(endBeat <= phraseEnd, `MIDI note crosses the bar ${bar + 4 - bar % 4} trade boundary`);
+  assert.ok(note.midi >= 42 && note.midi <= 57, `Note ${note.name} falls outside the bass solo register`);
   assert.ok(note.velocity > 0 && note.velocity <= 1);
+}
+
+for (let index = 1; index < notes.length; index++) {
+  const previous = notes[index - 1];
+  const next = notes[index];
+  assert.ok(previous.ticks + previous.durationTicks <= next.ticks, "Solo notes overlap");
 }
 
 const dataContext = vm.createContext({});
@@ -28,7 +45,7 @@ const base64 = vm.runInContext("MIDI_BASE64", dataContext);
 assert.deepEqual(Buffer.from(base64, "base64"), bytes);
 global.window = { atob: (value) => Buffer.from(value, "base64").toString("binary") };
 const { parseTake } = require("./player.js");
-assert.equal(parseTake(base64, Midi).track.notes.length, 60);
+assert.equal(parseTake(base64, Midi).track.notes.length, 73);
 delete global.window;
 
 function fakeElement() {
