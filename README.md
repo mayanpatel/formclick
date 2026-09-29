@@ -54,7 +54,7 @@ Included:
 - Working Trade 2s, Trade Sections, and Trade Choruses modes.
 - Form-grid Band/You indicators during trading.
 - Fullscreen Solo View and screen wake lock while playing.
-- Audio interruptions pause playback and offer a Resume control at the same bar with a fresh audio engine, without requiring a page refresh.
+- Audio interruptions pause playback and offer a Resume control at the same bar, with a longer reconnect window and a fresh audio engine on retry when needed.
 - Installable PWA shell with verified offline loading.
 - Testable form, loop, phrase, and trading logic in `core.js`.
 

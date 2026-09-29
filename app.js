@@ -253,6 +253,7 @@ const state = {
   nextNoteTime: 0,
   audioClockTime: 0,
   audioClockProgressMs: 0,
+  audioNeedsReset: false,
   resumeBeatIndex: null,
   formKey: "aaba32",
   songPresetKey: "",
@@ -551,37 +552,51 @@ function startLoop(callback, delayMs) {
   };
 }
 
-function resumeAudioContext(audio, timeoutMs = 900) {
-  if (audio.state === "running" || audio.state === "closed") {
-    return Promise.resolve(audio.state === "running");
+async function resumeAudioContext(audio, timeoutMs = 3500) {
+  if (audio.state === "closed") {
+    return false;
   }
 
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      window.clearTimeout(timeoutId);
-      resolve(value);
-    };
-    const timeoutId = window.setTimeout(() => finish(false), timeoutMs);
-
+  let rejected = false;
+  if (audio.state !== "running") {
     try {
-      audio.resume()
-        .then(() => finish(audio.state === "running"))
-        .catch(() => finish(false));
+      Promise.resolve(audio.resume()).catch(() => {
+        rejected = true;
+      });
     } catch (error) {
-      finish(false);
+      return false;
     }
-  });
+  }
+
+  const deadline = nowMs() + timeoutMs;
+  while (nowMs() < deadline) {
+    if (audio.state === "running") {
+      return true;
+    }
+    if (rejected || audio.state === "closed") {
+      return false;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+  }
+
+  return audio.state === "running";
 }
 
-async function isAudioClockAdvancing(audio) {
+async function isAudioClockAdvancing(audio, timeoutMs = 2000) {
   const startTime = audio.currentTime;
-  await new Promise((resolve) => window.setTimeout(resolve, 100));
-  return audio.state === "running" && audio.currentTime > startTime + 0.01;
+  const deadline = nowMs() + timeoutMs;
+
+  while (nowMs() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+    if (audio.state === "running" && audio.currentTime > startTime + 0.01) {
+      return true;
+    }
+    if (audio.state === "closed") {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 function discardAudioContext() {
@@ -1218,11 +1233,13 @@ function runScheduler() {
     state.audioClockTime = audioTime;
     state.audioClockProgressMs = nowMs();
   } else if (nowMs() - state.audioClockProgressMs > 1500) {
+    state.audioNeedsReset = true;
     pauseForAudioInterruption();
     return;
   }
 
   if (state.nextNoteTime < audioTime - 1) {
+    state.audioNeedsReset = true;
     pauseForAudioInterruption();
     return;
   }
@@ -1243,7 +1260,11 @@ async function startMetronome(options = {}) {
   }
 
   setRuntimeStatus("Starting");
-  setAudioStatus("");
+  setAudioStatus("Connecting audio...");
+  els.startStop.disabled = true;
+  els.soloResume.disabled = true;
+  els.transportLabel.textContent = "Connecting...";
+  els.soloResume.textContent = "Connecting...";
 
   const countInBars = Number(els.countIn.value);
   const initialBeatIndex = Number.isFinite(options.initialBeatIndex)
@@ -1259,6 +1280,11 @@ async function startMetronome(options = {}) {
   state.isPlaying = true;
   state.usesAudio = false;
 
+  if (state.audioNeedsReset) {
+    discardAudioContext();
+    state.audioNeedsReset = false;
+  }
+
   const audio = state.audioContext?.state !== "closed" && state.audioContext
     ? state.audioContext
     : createAudioContext();
@@ -1267,11 +1293,16 @@ async function startMetronome(options = {}) {
     return;
   }
 
-  if (!resumed || !(await isAudioClockAdvancing(audio))) {
-    if (generation !== state.playbackGeneration) {
-      return;
-    }
-    throw new Error("Audio did not resume");
+  if (!resumed) {
+    throw new Error(`Audio did not reach running state (${audio.state})`);
+  }
+
+  const clockAdvancing = await isAudioClockAdvancing(audio);
+  if (generation !== state.playbackGeneration) {
+    return;
+  }
+  if (!clockAdvancing) {
+    throw new Error(`Audio clock did not advance (${audio.state})`);
   }
 
   if (generation !== state.playbackGeneration) {
@@ -1283,13 +1314,18 @@ async function startMetronome(options = {}) {
   state.audioClockProgressMs = nowMs();
   state.nextNoteTime = audio.currentTime + 0.08;
   state.timerId = startLoop(runScheduler, scheduler.lookaheadMs);
+  state.audioNeedsReset = false;
   state.resumeBeatIndex = null;
   syncSoloResume();
 
+  els.startStop.disabled = false;
+  els.soloResume.disabled = false;
+  els.soloResume.textContent = "Resume audio";
   els.startStop.classList.add("is-playing");
   document.body.classList.add("is-playing");
   els.startStop.setAttribute("aria-label", "Stop metronome");
   els.transportLabel.textContent = "Stop";
+  setAudioStatus("");
   renderPosition();
   setRuntimeStatus("Playing");
   requestWakeLock();
@@ -1313,12 +1349,16 @@ function stopMetronome({ preservePosition = false, resetAudio = true } = {}) {
   state.usesAudio = false;
   if (resetAudio) {
     discardAudioContext();
+    state.audioNeedsReset = false;
   }
   state.beatIndex = state.resumeBeatIndex ?? 0;
   state.activeBeatIndex = state.beatIndex;
   state.playbackBeatOffset = 0;
   els.startStop.classList.remove("is-playing");
   document.body.classList.remove("is-playing");
+  els.startStop.disabled = false;
+  els.soloResume.disabled = false;
+  els.soloResume.textContent = "Resume audio";
   els.startStop.setAttribute("aria-label", preservePosition ? "Resume metronome" : "Start metronome");
   els.transportLabel.textContent = preservePosition ? "Resume" : "Start";
   const countInMessage = Number(els.countIn.value) > 0 ? " after count-in" : "";
@@ -1331,14 +1371,17 @@ function stopMetronome({ preservePosition = false, resetAudio = true } = {}) {
 
 function pauseForAudioInterruption() {
   if (state.isPlaying) {
-    stopMetronome({ preservePosition: true });
+    stopMetronome({ preservePosition: true, resetAudio: false });
   }
 }
 
 function handleStartError(error) {
   console.error("Could not start metronome", error);
-  stopMetronome({ preservePosition: state.resumeBeatIndex !== null });
-  setAudioStatus("Audio unavailable. Tap Start or Resume to retry.");
+  stopMetronome({ preservePosition: state.resumeBeatIndex !== null, resetAudio: false });
+  state.audioNeedsReset = true;
+  const cause = error.message.includes("clock") ? "Audio timing stalled" : "Audio did not reconnect";
+  const action = state.resumeBeatIndex !== null ? "Resume" : "Start";
+  setAudioStatus(`${cause}. Tap ${action} to reset audio and retry.`);
   setRuntimeStatus("Could not start metronome");
 }
 

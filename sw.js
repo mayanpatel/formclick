@@ -1,4 +1,4 @@
-const cacheName = "formclick-v2u";
+const cacheName = "formclick-v2v";
 const appFiles = [
   "./",
   "./index.html",
