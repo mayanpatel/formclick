@@ -1512,11 +1512,11 @@ function getPracticeStatus(position) {
   }
 
   if (isTradingMuteBar(position)) {
-    return "You";
+    return "Your solo";
   }
 
   if (els.practiceMode.value !== "normal") {
-    return "Band";
+    return "Backing";
   }
 
   return "Normal";
@@ -2304,7 +2304,7 @@ function renderPosition() {
   els.nextSection.textContent = getNextSectionLabel(position);
   els.phraseStatus.textContent = `Phrase ${phraseIndex} of ${phraseCount}`;
   els.practiceStatus.textContent = getPracticeStatus(position);
-  document.body.dataset.tradeTurn = getPracticeStatus(position).toLowerCase();
+  document.body.dataset.tradeTurn = isTradingMuteBar(position) ? "you" : "backing";
 
   if (state.currentBarCell) {
     state.currentBarCell.classList.remove("is-current");

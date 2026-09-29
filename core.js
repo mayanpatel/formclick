@@ -104,7 +104,7 @@
   function getTradingOptions(totalBars) {
     if (totalBars === 8 || totalBars === 12) {
       return [
-        { value: "normal", label: "Normal" },
+        { value: "normal", label: "Off" },
         { value: "trade4", label: "Trade 4s" },
         { value: "trade2", label: "Trade 2s" },
         { value: "tradeChoruses", label: "Trade choruses" }
@@ -113,7 +113,7 @@
 
     if (totalBars === 16) {
       return [
-        { value: "normal", label: "Normal" },
+        { value: "normal", label: "Off" },
         { value: "trade4", label: "Trade 4s" },
         { value: "trade8", label: "Trade 8s" },
         { value: "tradeChoruses", label: "Trade choruses" }
@@ -121,7 +121,7 @@
     }
 
     return [
-      { value: "normal", label: "Normal" },
+      { value: "normal", label: "Off" },
       { value: "trade4", label: "Trade 4s" },
       { value: "trade8", label: "Trade 8s" },
       { value: "tradeSections", label: "Trade sections" },

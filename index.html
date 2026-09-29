@@ -204,21 +204,21 @@
             <label>
               Trading mode
               <select id="practice-mode">
-                <option value="normal" selected>Normal</option>
+                <option value="normal" selected>Off</option>
               </select>
             </label>
 
             <div class="practice-control">
               <div class="field-label-with-help">
-                <label for="trading-bass">Trading bass</label>
+                <label for="trading-bass">Trading bass plays</label>
                 <span class="tooltip-trigger">
                   <button class="info-button" type="button" aria-label="Explain trading bass" aria-describedby="trading-bass-help">i</button>
-                  <span id="trading-bass-help" class="tooltip-content" role="tooltip">Full form keeps bass playing during your turn. Band only mutes it during your turn.</span>
+                  <span id="trading-bass-help" class="tooltip-content" role="tooltip">Backing only mutes bass during your solo. Both turns keeps it playing. Only bars with assigned notes will sound.</span>
                 </span>
               </div>
               <select id="trading-bass">
-                <option value="full" selected>Full form</option>
-                <option value="band">Band only</option>
+                <option value="full" selected>Both turns</option>
+                <option value="band">Backing only</option>
               </select>
             </div>
           </div>
@@ -430,7 +430,7 @@
       <div id="runtime-status" class="sr-only" aria-live="polite">Ready</div>
     </main>
 
-    <script src="core.js?v=iteration-2t"></script>
-    <script src="app.js?v=iteration-2v"></script>
+    <script src="core.js?v=iteration-2x"></script>
+    <script src="app.js?v=iteration-2z"></script>
   </body>
 </html>
