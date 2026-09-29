@@ -19,10 +19,12 @@ Included:
 - Jazz form grid with section labels, current bar highlight, chorus count, and next-section indicator.
 - Built-in form presets: 12-bar blues, 32-bar AABA, 32-bar ABAC, rhythm changes, 16-bar tune, and modal/vamp.
 - Song presets for Autumn Leaves, Sunny Side of the Street, Blue Bossa, I Got Rhythm, and Have You Met Miss Jones.
-- Song dropdown is populated from `songs.json`.
+- Song presets dropdown is populated from `songs.json`.
+- Separate No song and Custom choices, with a Clear current song button that keeps the form but removes its bass assignments.
 - Song presets automatically enable Bass editor.
 - Song presets set a recommended bass octave.
-- Practice tools panel combining section looping and form-aware trading controls.
+- Practice tools panel combining section looping, form-aware trading, and click-gap practice.
+- Click gaps alternate 1, 2, 4, or 8 audible bars with the same number of silent bars; cues and bass remain independent.
 - Trading bass has an inline hover/focus explanation of Full form and Band only.
 - Trading mode dropdown shows form-aware options.
 - Trading bass control with Full form and Band only options.
@@ -40,7 +42,7 @@ Included:
 - Edited bars display their custom root labels in the form grid.
 - Compact practice-first layout with sticky playback readouts.
 - Responsive iPad layout and horizontally scrollable, touch-sized mobile form grid.
-- Song setup group containing the Song editor and Bass editor.
+- Song section containing Song presets, the Song editor, and the Bass editor.
 - Song editor combines form choice, custom sections, title/key details, and local song saving.
 - Custom forms appear as a single `Custom form` choice instead of adding named entries to the main Form dropdown.
 - Expandable Phrase map, Song editor, and mixer tools.
@@ -52,6 +54,7 @@ Included:
 - Working Trade 2s, Trade Sections, and Trade Choruses modes.
 - Form-grid Band/You indicators during trading.
 - Fullscreen Solo View and screen wake lock while playing.
+- Audio interruptions pause playback and offer a Resume control at the same bar with a fresh audio engine, without requiring a page refresh.
 - Installable PWA shell with verified offline loading.
 - Testable form, loop, phrase, and trading logic in `core.js`.
 
@@ -96,7 +99,8 @@ When opening the app directly as a `file://` page, some browsers block loading J
 - Try click modes: quarter notes, 2 & 4, beat 1 only, and barline only.
 - Set Click to Off and confirm cue intervals still sound.
 - Switch form presets and confirm the grid, section, bar, beat, chorus, and next-section readouts update.
-- Select Autumn Leaves from Song and confirm the key shows G minor.
+- Select Autumn Leaves from Song presets and confirm the key shows G minor.
+- Select Custom and confirm the Song editor opens, then clear it and confirm the dropdown returns to No song with no bass notes assigned.
 - Confirm the form changes to Autumn Leaves and the grid fills with bass-root labels.
 - Select Sunny Side of the Street and confirm the key shows C major.
 - Select Blue Bossa and confirm the key shows C minor.

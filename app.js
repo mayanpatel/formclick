@@ -159,6 +159,7 @@ let songPresets = { ...fallbackSongPresets };
 const els = {
   startStop: document.querySelector("#start-stop"),
   transportLabel: document.querySelector("#transport-label"),
+  audioStatus: document.querySelector("#audio-status"),
   bpm: document.querySelector("#bpm"),
   bpmRange: document.querySelector("#bpm-range"),
   bpmDownTen: document.querySelector("#bpm-down-ten"),
@@ -169,7 +170,9 @@ const els = {
   formPreset: document.querySelector("#form-preset"),
   songPreset: document.querySelector("#song-preset"),
   songKey: document.querySelector("#song-key"),
+  clearCurrentSong: document.querySelector("#clear-current-song"),
   practiceMode: document.querySelector("#practice-mode"),
+  clickGaps: document.querySelector("#click-gaps"),
   sectionLoop: document.querySelector("#section-loop"),
   phraseMapEnabled: document.querySelector("#phrase-map-enabled"),
   phraseStartBar: document.querySelector("#phrase-start-bar"),
@@ -185,6 +188,7 @@ const els = {
   phraseRanges: document.querySelector("#phrase-ranges"),
   tradingBass: document.querySelector("#trading-bass"),
   practiceStatus: document.querySelector("#practice-status"),
+  clickGapSummary: document.querySelector("#click-gap-summary"),
   timeSignature: document.querySelector("#time-signature"),
   clickMode: document.querySelector("#click-mode"),
   countIn: document.querySelector("#count-in"),
@@ -221,6 +225,7 @@ const els = {
   bassSummary: document.querySelector("#bass-summary"),
   tradingSummary: document.querySelector("#trading-summary"),
   mapSummary: document.querySelector("#map-summary"),
+  soloResume: document.querySelector("#solo-resume"),
   soloToggle: document.querySelector("#solo-toggle"),
   songEditorPanel: document.querySelector(".song-editor-panel"),
   songEditorTitle: document.querySelector("#song-editor-title"),
@@ -244,10 +249,14 @@ const state = {
   beatsPerBar: 4,
   beatIndex: 0,
   activeBeatIndex: 0,
+  playbackBeatOffset: 0,
   nextNoteTime: 0,
-  nextVisualTimeMs: 0,
+  audioClockTime: 0,
+  audioClockProgressMs: 0,
+  resumeBeatIndex: null,
   formKey: "aaba32",
   songPresetKey: "",
+  isCustomSong: false,
   selectedBarIndex: null,
   customBassRoots: {},
   phraseMaps: {},
@@ -543,7 +552,7 @@ function startLoop(callback, delayMs) {
 }
 
 function resumeAudioContext(audio, timeoutMs = 900) {
-  if (audio.state !== "suspended") {
+  if (audio.state === "running" || audio.state === "closed") {
     return Promise.resolve(audio.state === "running");
   }
 
@@ -559,10 +568,64 @@ function resumeAudioContext(audio, timeoutMs = 900) {
     };
     const timeoutId = window.setTimeout(() => finish(false), timeoutMs);
 
-    audio.resume()
-      .then(() => finish(audio.state === "running"))
-      .catch(() => finish(false));
+    try {
+      audio.resume()
+        .then(() => finish(audio.state === "running"))
+        .catch(() => finish(false));
+    } catch (error) {
+      finish(false);
+    }
   });
+}
+
+async function isAudioClockAdvancing(audio) {
+  const startTime = audio.currentTime;
+  await new Promise((resolve) => window.setTimeout(resolve, 100));
+  return audio.state === "running" && audio.currentTime > startTime + 0.01;
+}
+
+function discardAudioContext() {
+  const audio = state.audioContext;
+  state.audioContext = null;
+  state.masterInput = null;
+  state.bassSamples = {};
+
+  if (audio) {
+    audio.onstatechange = null;
+  }
+
+  if (audio && audio.state !== "closed") {
+    try {
+      audio.close().catch(() => {});
+    } catch (error) {
+      console.warn("Unable to close audio context", error);
+    }
+  }
+}
+
+function createAudioContext() {
+  const AudioContextConstructor = getAudioContextConstructor();
+  if (!AudioContextConstructor) {
+    throw new Error("Web Audio is unavailable");
+  }
+
+  const audio = new AudioContextConstructor();
+  state.audioContext = audio;
+  audio.onstatechange = () => {
+    if (state.audioContext === audio && state.isPlaying && state.usesAudio && audio.state !== "running") {
+      pauseForAudioInterruption();
+    }
+  };
+  return audio;
+}
+
+function setAudioStatus(message) {
+  els.audioStatus.textContent = message;
+  els.audioStatus.hidden = !message;
+}
+
+function syncSoloResume() {
+  els.soloResume.hidden = state.resumeBeatIndex === null || !document.body.classList.contains("solo-view");
 }
 
 function setRuntimeStatus(message) {
@@ -1111,8 +1174,9 @@ function scheduleBeat(beatIndex, time) {
   const position = getPositionFromBeat(beatIndex);
   const accent = position.isCountIn || position.beatInBar === 1;
   const muteSupport = shouldMuteClickSupport(position);
+  const muteClickGap = core.isClickGapBeat(beatIndex, state.beatsPerBar, Number(els.clickGaps.value));
 
-  if (!muteSupport && shouldPlayMainClick(position)) {
+  if (!muteSupport && !muteClickGap && shouldPlayMainClick(position)) {
     if (!position.isCountIn && els.clickMode.value === "barline") {
       playTone(time, 760, 0.075, 0.16, "triangle", "click");
     } else {
@@ -1143,51 +1207,84 @@ function scheduleBeat(beatIndex, time) {
 }
 
 function runScheduler() {
-  while (state.nextNoteTime < state.audioContext.currentTime + scheduler.scheduleAheadSeconds) {
-    scheduleBeat(state.beatIndex, state.nextNoteTime);
+  const audio = state.audioContext;
+  if (!audio || audio.state !== "running") {
+    pauseForAudioInterruption();
+    return;
+  }
+
+  const audioTime = audio.currentTime;
+  if (audioTime > state.audioClockTime + 0.001) {
+    state.audioClockTime = audioTime;
+    state.audioClockProgressMs = nowMs();
+  } else if (nowMs() - state.audioClockProgressMs > 1500) {
+    pauseForAudioInterruption();
+    return;
+  }
+
+  if (state.nextNoteTime < audioTime - 1) {
+    pauseForAudioInterruption();
+    return;
+  }
+
+  while (state.nextNoteTime < audioTime + scheduler.scheduleAheadSeconds) {
+    const beatIndex = state.beatIndex < 0
+      ? state.beatIndex
+      : state.beatIndex + state.playbackBeatOffset;
+    scheduleBeat(beatIndex, state.nextNoteTime);
     state.beatIndex += 1;
     state.nextNoteTime += 60 / state.bpm;
   }
 }
 
-function runVisualScheduler() {
-  const now = nowMs();
-
-  while (state.nextVisualTimeMs < now + scheduler.scheduleAheadSeconds * 1000) {
-    scheduleVisualBeat(state.beatIndex, Math.max(0, state.nextVisualTimeMs - now));
-    state.beatIndex += 1;
-    state.nextVisualTimeMs += (60 / state.bpm) * 1000;
-  }
-}
-
 async function startMetronome(options = {}) {
-  setRuntimeStatus("Starting");
-  const AudioContextConstructor = getAudioContextConstructor();
-
-  if (!state.audioContext && AudioContextConstructor) {
-    state.audioContext = new AudioContextConstructor();
+  if (state.isPlaying) {
+    return;
   }
+
+  setRuntimeStatus("Starting");
+  setAudioStatus("");
 
   const countInBars = Number(els.countIn.value);
-  state.beatIndex = Number.isFinite(options.initialBeatIndex)
-    ? Math.max(0, options.initialBeatIndex)
-    : -(countInBars * state.beatsPerBar);
-  state.activeBeatIndex = state.beatIndex;
+  const initialBeatIndex = Number.isFinite(options.initialBeatIndex)
+    ? options.initialBeatIndex
+    : state.resumeBeatIndex;
+  state.playbackBeatOffset = Number.isFinite(initialBeatIndex) ? Math.max(0, initialBeatIndex) : 0;
+  state.beatIndex = countInBars && !Number.isFinite(options.initialBeatIndex)
+    ? -(countInBars * state.beatsPerBar)
+    : 0;
+  state.activeBeatIndex = state.beatIndex < 0 ? state.beatIndex : state.playbackBeatOffset;
   state.playbackGeneration += 1;
+  const generation = state.playbackGeneration;
   state.isPlaying = true;
   state.usesAudio = false;
 
-  if (state.audioContext) {
-    state.usesAudio = await resumeAudioContext(state.audioContext);
+  const audio = state.audioContext?.state !== "closed" && state.audioContext
+    ? state.audioContext
+    : createAudioContext();
+  const resumed = await resumeAudioContext(audio);
+  if (generation !== state.playbackGeneration) {
+    return;
   }
 
-  if (state.usesAudio) {
-    state.nextNoteTime = state.audioContext.currentTime + 0.08;
-    state.timerId = startLoop(runScheduler, scheduler.lookaheadMs);
-  } else {
-    state.nextVisualTimeMs = nowMs() + 80;
-    state.timerId = startLoop(runVisualScheduler, scheduler.lookaheadMs);
+  if (!resumed || !(await isAudioClockAdvancing(audio))) {
+    if (generation !== state.playbackGeneration) {
+      return;
+    }
+    throw new Error("Audio did not resume");
   }
+
+  if (generation !== state.playbackGeneration) {
+    return;
+  }
+
+  state.usesAudio = true;
+  state.audioClockTime = audio.currentTime;
+  state.audioClockProgressMs = nowMs();
+  state.nextNoteTime = audio.currentTime + 0.08;
+  state.timerId = startLoop(runScheduler, scheduler.lookaheadMs);
+  state.resumeBeatIndex = null;
+  syncSoloResume();
 
   els.startStop.classList.add("is-playing");
   document.body.classList.add("is-playing");
@@ -1198,7 +1295,12 @@ async function startMetronome(options = {}) {
   requestWakeLock();
 }
 
-function stopMetronome() {
+function stopMetronome({ preservePosition = false, resetAudio = true } = {}) {
+  const currentBeat = state.activeBeatIndex < 0 ? state.playbackBeatOffset : state.activeBeatIndex;
+  state.resumeBeatIndex = preservePosition
+    ? Math.floor(Math.max(0, currentBeat) / state.beatsPerBar) * state.beatsPerBar
+    : null;
+
   if (state.timerId) {
     state.timerId.stop();
   }
@@ -1208,20 +1310,35 @@ function stopMetronome() {
   state.visualTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
   state.visualTimeoutIds.clear();
   state.isPlaying = false;
-  state.beatIndex = 0;
-  state.activeBeatIndex = 0;
+  state.usesAudio = false;
+  if (resetAudio) {
+    discardAudioContext();
+  }
+  state.beatIndex = state.resumeBeatIndex ?? 0;
+  state.activeBeatIndex = state.beatIndex;
+  state.playbackBeatOffset = 0;
   els.startStop.classList.remove("is-playing");
   document.body.classList.remove("is-playing");
-  els.startStop.setAttribute("aria-label", "Start metronome");
-  els.transportLabel.textContent = "Start";
+  els.startStop.setAttribute("aria-label", preservePosition ? "Resume metronome" : "Start metronome");
+  els.transportLabel.textContent = preservePosition ? "Resume" : "Start";
+  const countInMessage = Number(els.countIn.value) > 0 ? " after count-in" : "";
+  setAudioStatus(preservePosition ? `Audio paused. Tap Resume to continue from this bar${countInMessage}.` : "");
+  syncSoloResume();
   renderPosition();
-  setRuntimeStatus("Stopped");
+  setRuntimeStatus(preservePosition ? "Audio paused" : "Stopped");
   releaseWakeLock();
+}
+
+function pauseForAudioInterruption() {
+  if (state.isPlaying) {
+    stopMetronome({ preservePosition: true });
+  }
 }
 
 function handleStartError(error) {
   console.error("Could not start metronome", error);
-  stopMetronome();
+  stopMetronome({ preservePosition: state.resumeBeatIndex !== null });
+  setAudioStatus("Audio unavailable. Tap Start or Resume to retry.");
   setRuntimeStatus("Could not start metronome");
 }
 
@@ -1328,7 +1445,7 @@ function restartIfPlaying(options = {}) {
   }
 
   const initialBeatIndex = options.preservePosition ? Math.max(0, state.activeBeatIndex) : undefined;
-  stopMetronome();
+  stopMetronome({ resetAudio: false });
   startMetronome({ initialBeatIndex }).catch(handleStartError);
 }
 
@@ -1384,6 +1501,15 @@ function renderActiveSummaries() {
   const tradingActive = els.practiceMode.value !== "normal";
   els.tradingSummary.hidden = !tradingActive;
   els.tradingSummary.textContent = tradingActive ? `Trading: ${getSelectedOptionLabel(els.practiceMode)}` : "";
+
+  const clickGapsActive = els.clickGaps.value !== "off";
+  const clickGapSilent = core.isClickGapBeat(state.activeBeatIndex, state.beatsPerBar, Number(els.clickGaps.value))
+    || shouldMuteClickSupport(getPositionFromBeat(state.activeBeatIndex));
+  els.clickGapSummary.hidden = !clickGapsActive;
+  els.clickGapSummary.textContent = els.clickMode.value === "off"
+    ? "Click off"
+    : clickGapSilent ? "Click silent" : "Click on";
+  els.clickGapSummary.classList.toggle("is-gap-silent", clickGapSilent || els.clickMode.value === "off");
 
   const mapCount = getCurrentPhraseMap().length;
   els.mapSummary.hidden = !els.phraseMapEnabled.checked;
@@ -1460,6 +1586,10 @@ function saveSelectedBarRoot() {
   }
 
   getCurrentFormCustomRoots()[String(state.selectedBarIndex)] = roots;
+  if (!state.songPresetKey && !state.isCustomSong) {
+    state.isCustomSong = true;
+    setSongPresetDisplay(null);
+  }
   renderCustomRootLabels();
   renderPosition();
   syncSongEditorState("Changed");
@@ -1479,8 +1609,11 @@ function clearSelectedBarRoot() {
 }
 
 function setSongPresetDisplay(preset = null) {
-  els.songPreset.value = preset ? state.songPresetKey : "";
-  els.songKey.textContent = preset ? preset.key : "Custom";
+  els.songPreset.value = preset ? state.songPresetKey : state.isCustomSong ? "custom" : "";
+  els.songKey.textContent = preset
+    ? preset.key
+    : state.isCustomSong ? els.songEditorKey.value.trim() || "Custom" : "None";
+  els.clearCurrentSong.disabled = !preset && !state.isCustomSong;
 }
 
 function getLocalSongs() {
@@ -1504,12 +1637,17 @@ function appendSongOption(parent, songKey, preset) {
 }
 
 function renderSongPresetOptions() {
-  const selectedValue = state.songPresetKey || els.songPreset.value;
+  const selectedValue = state.songPresetKey || (state.isCustomSong ? "custom" : "");
   els.songPreset.innerHTML = "";
 
+  const noSongOption = document.createElement("option");
+  noSongOption.value = "";
+  noSongOption.textContent = "No song";
+  els.songPreset.append(noSongOption);
+
   const customOption = document.createElement("option");
-  customOption.value = "";
-  customOption.textContent = "No song / Custom";
+  customOption.value = "custom";
+  customOption.textContent = "Custom";
   els.songPreset.append(customOption);
 
   const builtInGroup = document.createElement("optgroup");
@@ -1527,7 +1665,7 @@ function renderSongPresetOptions() {
     els.songPreset.append(localGroup);
   }
 
-  if (songPresets[selectedValue]) {
+  if (selectedValue === "custom" || songPresets[selectedValue]) {
     els.songPreset.value = selectedValue;
   }
 }
@@ -1642,19 +1780,71 @@ async function loadSongPresets() {
   renderSongPresetOptions();
 }
 
-function applySongPreset(presetKey) {
-  const preset = songPresets[presetKey];
-  state.songPresetKey = preset ? presetKey : "";
+function selectCustomSong() {
+  state.songPresetKey = "";
+  state.isCustomSong = true;
+  syncSongEditorFromCurrent({ clearTitle: true });
+  setSongPresetDisplay(null);
+  els.songEditorPanel.open = true;
+  syncSongEditorState("New");
+  persistAppState();
+  setRuntimeStatus("Custom song ready");
+}
+
+function clearCurrentSong() {
+  const preset = songPresets[state.songPresetKey];
+  const previousFormKey = state.formKey;
+  const displayFormKey = preset?.displayFormKey || els.formPreset.value;
+  let nextFormKey = previousFormKey;
+  if (builtInFormKeys.includes(displayFormKey)) {
+    nextFormKey = displayFormKey;
+  } else if (!builtInFormKeys.includes(previousFormKey) && previousFormKey !== "customUser") {
+    nextFormKey = "aaba32";
+  }
+  state.formKey = nextFormKey;
+
+  state.customBassRoots[previousFormKey] = {};
+  state.customBassRoots[state.formKey] = {};
+  if (state.formKey === "customUser" && state.customForm) {
+    state.customForm = { name: "Custom form", sections: copySections(state.customForm.sections) };
+    forms.customUser = state.customForm;
+  }
+
+  state.songPresetKey = "";
+  state.isCustomSong = false;
   state.selectedPhraseId = null;
   els.savePhrase.textContent = "Add range";
+  els.rootEditEnabled.checked = false;
+  renderCustomFormOption();
+  setSelectValue(els.formPreset, state.formKey);
+  closeBarRootEditor();
+  syncBassEditorVisibility();
+  renderSectionLoopOptions();
+  renderTradingModeOptions();
+  renderFormGrid();
+  syncSongEditorFromCurrent({ clearTitle: true });
+  setSongPresetDisplay(null);
+  persistAppState();
+  restartIfPlaying();
+  setRuntimeStatus("No song selected");
+}
 
-  if (!preset) {
-    setSongPresetDisplay(null);
-    syncSongEditorFromCurrent({ clearTitle: true });
-    syncSongEditorState("New");
-    persistAppState();
+function applySongPreset(presetKey) {
+  if (presetKey === "custom") {
+    selectCustomSong();
     return;
   }
+
+  if (!songPresets[presetKey]) {
+    clearCurrentSong();
+    return;
+  }
+
+  const preset = songPresets[presetKey];
+  state.songPresetKey = presetKey;
+  state.isCustomSong = false;
+  state.selectedPhraseId = null;
+  els.savePhrase.textContent = "Add range";
 
   const formDefinition = core.resolveSongFormDefinition(preset, forms);
   if (!formDefinition) {
@@ -2225,6 +2415,7 @@ function applySongEditorDraft(options = {}) {
   const previousFormKey = state.formKey;
   state.formKey = formValue;
   state.songPresetKey = "";
+  state.isCustomSong = true;
   state.selectedBarIndex = null;
   state.selectedPhraseId = null;
   els.savePhrase.textContent = "Add range";
@@ -2309,6 +2500,7 @@ function saveLocalSong() {
   writeStorage(storageKeys.localSongs, localSongs);
   refreshSongPresetMap();
   state.songPresetKey = songKey;
+  state.isCustomSong = false;
   renderSongPresetOptions();
   setSongPresetDisplay(songPresets[songKey]);
   syncSongEditorFromCurrent();
@@ -2329,6 +2521,7 @@ function deleteLocalSong() {
   writeStorage(storageKeys.localSongs, localSongs);
   refreshSongPresetMap();
   state.songPresetKey = "";
+  state.isCustomSong = true;
   renderSongPresetOptions();
   setSongPresetDisplay(null);
   els.songKey.textContent = els.songEditorKey.value.trim() || "Custom";
@@ -2344,7 +2537,9 @@ function getPracticeSnapshot() {
     bpm: state.bpm,
     beatsPerBar: state.beatsPerBar,
     formKey: state.formKey,
+    formDisplayKey: els.formPreset.value,
     songPresetKey: state.songPresetKey,
+    isCustomSong: state.isCustomSong,
     customForm: state.formKey === "customUser" ? state.customForm : null,
     customBassRoots: state.customBassRoots,
     phraseMaps: state.phraseMaps,
@@ -2361,6 +2556,7 @@ function getPracticeSnapshot() {
       bassOctave: els.bassOctave.value,
       bassEnabled: els.rootEditEnabled.checked,
       practiceMode: els.practiceMode.value,
+      clickGaps: els.clickGaps.value,
       tradingBass: els.tradingBass.value,
       sectionLoop: els.sectionLoop.value,
       phraseMapEnabled: els.phraseMapEnabled.checked
@@ -2415,11 +2611,16 @@ function applyPracticeSnapshot(snapshot) {
   const nextFormKey = forms[snapshot.formKey] ? snapshot.formKey : "aaba32";
   state.formKey = nextFormKey;
   state.songPresetKey = songPresets[snapshot.songPresetKey] ? snapshot.songPresetKey : "";
+  const legacyCustomRoots = snapshot.customBassRoots?.[nextFormKey];
+  state.isCustomSong = !state.songPresetKey && (
+    snapshot.isCustomSong === true
+    || (snapshot.isCustomSong === undefined && (nextFormKey === "customUser" || Object.keys(legacyCustomRoots || {}).length > 0))
+  );
   state.customBassRoots = snapshot.customBassRoots && typeof snapshot.customBassRoots === "object" ? snapshot.customBassRoots : {};
   state.phraseMaps = snapshot.phraseMaps && typeof snapshot.phraseMaps === "object" ? snapshot.phraseMaps : {};
   state.beatsPerBar = Number(snapshot.beatsPerBar) || 4;
   setBpm(Number(snapshot.bpm) || 140);
-  const displayFormKey = songPresets[state.songPresetKey]?.displayFormKey || nextFormKey;
+  const displayFormKey = songPresets[state.songPresetKey]?.displayFormKey || snapshot.formDisplayKey || nextFormKey;
   setSelectValue(els.formPreset, displayFormKey);
   setSelectValue(els.timeSignature, snapshot.controls?.timeSignature || state.beatsPerBar);
   state.beatsPerBar = Number(els.timeSignature.value);
@@ -2428,6 +2629,7 @@ function applyPracticeSnapshot(snapshot) {
   setSelectValue(els.sectionLoop, snapshot.controls?.sectionLoop);
   renderTradingModeOptions();
   setSelectValue(els.practiceMode, snapshot.controls?.practiceMode);
+  setSelectValue(els.clickGaps, snapshot.controls?.clickGaps ?? "off");
   setSelectValue(els.tradingBass, snapshot.controls?.tradingBass);
   setSelectValue(els.clickMode, snapshot.controls?.clickMode);
   setSelectValue(els.countIn, snapshot.controls?.countIn);
@@ -2484,6 +2686,7 @@ async function toggleSoloView() {
   const entering = !document.body.classList.contains("solo-view");
   document.body.classList.toggle("solo-view", entering);
   els.soloToggle.textContent = entering ? "Exit solo" : "Solo view";
+  syncSoloResume();
 
   try {
     if (entering && document.documentElement.requestFullscreen && !document.fullscreenElement) {
@@ -2504,6 +2707,7 @@ function bindEvents() {
       startMetronome().catch(handleStartError);
     }
   });
+  els.soloResume.addEventListener("click", () => startMetronome().catch(handleStartError));
 
   els.bpm.addEventListener("input", handleBpmInput);
   els.bpm.addEventListener("blur", commitBpmInput);
@@ -2547,6 +2751,7 @@ function bindEvents() {
   });
   els.saveSong.addEventListener("click", saveLocalSong);
   els.deleteSong.addEventListener("click", deleteLocalSong);
+  els.clearCurrentSong.addEventListener("click", clearCurrentSong);
   els.soloToggle.addEventListener("click", () => toggleSoloView());
 
   els.songPreset.addEventListener("change", () => {
@@ -2557,6 +2762,7 @@ function bindEvents() {
     const previousFormKey = state.formKey;
     state.formKey = els.formPreset.value;
     state.songPresetKey = "";
+    state.isCustomSong = false;
     state.selectedPhraseId = null;
     els.savePhrase.textContent = "Add range";
 
@@ -2598,7 +2804,7 @@ function bindEvents() {
     restartIfPlaying();
   });
 
-  [els.practiceMode, els.sectionLoop, els.tradingBass].forEach((control) => {
+  [els.practiceMode, els.sectionLoop, els.tradingBass, els.clickGaps].forEach((control) => {
     control.addEventListener("change", () => {
       state.lastTradingVisualKey = "";
       renderPosition();
@@ -2617,15 +2823,20 @@ function bindEvents() {
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
+    if (document.visibilityState === "hidden") {
+      pauseForAudioInterruption();
+    } else {
       requestWakeLock();
     }
   });
+
+  window.addEventListener("pagehide", pauseForAudioInterruption);
 
   document.addEventListener("fullscreenchange", () => {
     if (!document.fullscreenElement && document.body.classList.contains("solo-view")) {
       document.body.classList.remove("solo-view");
       els.soloToggle.textContent = "Solo view";
+      syncSoloResume();
     }
   });
 

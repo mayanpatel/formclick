@@ -201,6 +201,13 @@ h2 {
     linear-gradient(90deg, currentColor 0 35%, transparent 35% 65%, currentColor 65% 100%);
 }
 
+.audio-status {
+  margin: 0;
+  color: var(--gold);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .tempo-cluster {
   display: grid;
   gap: 10px;
@@ -366,6 +373,11 @@ select {
   color: var(--green);
 }
 
+.state-chip.is-gap-silent {
+  border-color: rgba(235, 176, 92, 0.6);
+  color: #ebb05c;
+}
+
 .compact-button {
   min-height: 36px;
   padding: 6px 12px;
@@ -393,7 +405,6 @@ select {
   margin-top: 16px;
 }
 
-.song-preset-panel,
 .phrase-map-panel {
   display: grid;
   gap: 12px;
@@ -406,7 +417,15 @@ select {
 }
 
 .song-preset-panel {
-  grid-template-columns: minmax(220px, 1fr) minmax(120px, 180px);
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(100px, 150px) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.clear-song-button {
+  white-space: nowrap;
 }
 
 .phrase-map-panel {
@@ -464,7 +483,7 @@ select {
 
 .practice-tools-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -996,7 +1015,6 @@ input[type="number"]:hover {
 body.solo-view .control-layout,
 body.solo-view .form-stage > .practice-tools-panel,
 body.solo-view .form-stage > .phrase-map-panel,
-body.solo-view .form-stage > .song-preset-panel,
 body.solo-view .form-stage > .session-setup-section {
   display: none;
 }

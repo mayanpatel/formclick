@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>FormClick</title>
-    <link rel="stylesheet" href="styles.css?v=iteration-2p">
+    <link rel="stylesheet" href="styles.css?v=iteration-2u">
   </head>
   <body>
     <main class="app-shell">
@@ -51,6 +51,7 @@
             <span class="transport-icon" aria-hidden="true"></span>
             <span id="transport-label">Start</span>
           </button>
+          <p id="audio-status" class="audio-status" role="status" hidden></p>
 
           <div class="tempo-cluster">
             <label for="bpm">BPM</label>
@@ -167,8 +168,10 @@
             <span class="state-chip" id="loop-summary" hidden>Loop off</span>
             <span class="state-chip" id="bass-summary" hidden>Bass off</span>
             <span class="state-chip" id="trading-summary" hidden>Trading off</span>
+            <span class="state-chip" id="click-gap-summary" hidden>Click on</span>
             <span class="state-chip" id="map-summary" hidden>Map off</span>
             <span class="phrase-chip" id="phrase-status">Phrase 1 of 4</span>
+            <button id="solo-resume" class="secondary-button compact-button" type="button" hidden>Resume audio</button>
             <button id="solo-toggle" class="secondary-button compact-button" type="button">Solo view</button>
           </div>
         </div>
@@ -207,6 +210,17 @@
                 <option value="band">Band only</option>
               </select>
             </div>
+
+            <label>
+              Click gaps
+              <select id="click-gaps">
+                <option value="off" selected>Off</option>
+                <option value="1">1 bar on / 1 bar silent</option>
+                <option value="2">2 bars on / 2 bars silent</option>
+                <option value="4">4 bars on / 4 bars silent</option>
+                <option value="8">8 bars on / 8 bars silent</option>
+              </select>
+            </label>
           </div>
         </section>
 
@@ -271,23 +285,26 @@
           </div>
         </details>
 
-        <div class="song-preset-panel" aria-label="Song preset editor">
-          <label>
-            Song
-            <select id="song-preset">
-              <option value="">Custom form</option>
-            </select>
-          </label>
-
-          <div>
-            <span class="readout-label">Key</span>
-            <strong id="song-key">Custom</strong>
-          </div>
-        </div>
-
         <section class="session-setup-section" aria-labelledby="session-setup-title">
           <div class="tool-group-header">
-            <h3 id="session-setup-title">Song setup</h3>
+            <h3 id="session-setup-title">Song</h3>
+          </div>
+
+          <div class="song-preset-panel">
+            <label>
+              Song presets
+              <select id="song-preset">
+                <option value="">No song</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+
+            <div>
+              <span class="readout-label">Key</span>
+              <strong id="song-key">None</strong>
+            </div>
+
+            <button id="clear-current-song" class="secondary-button clear-song-button" type="button" disabled>Clear current song</button>
           </div>
 
           <details class="song-editor-panel tool-disclosure">
@@ -329,91 +346,91 @@
             </div>
           </details>
 
-        <div class="root-editor">
-          <label class="toggle-row root-edit-toggle">
-            <input id="root-edit-enabled" type="checkbox">
-            <span>Bass editor</span>
-          </label>
+          <div class="root-editor">
+            <label class="toggle-row root-edit-toggle">
+              <input id="root-edit-enabled" type="checkbox">
+              <span>Bass editor</span>
+            </label>
 
-          <p id="bass-editor-hint" class="editor-hint" hidden>Click a bar in the sequencer, then choose its bass note below.</p>
+            <p id="bass-editor-hint" class="editor-hint" hidden>Click a bar in the sequencer, then choose its bass note below.</p>
 
-          <div id="bar-root-editor" class="bar-root-editor" hidden>
-            <div>
-              <p class="eyebrow">Selected bar</p>
-              <h3 id="selected-bar-title">Bar 1</h3>
+            <div id="bar-root-editor" class="bar-root-editor" hidden>
+              <div>
+                <p class="eyebrow">Selected bar</p>
+                <h3 id="selected-bar-title">Bar 1</h3>
+              </div>
+
+              <label>
+                Whole bar
+                <select id="bar-root-primary">
+                  <option value="C1" selected>C</option>
+                  <option value="Db1">Db</option>
+                  <option value="D1">D</option>
+                  <option value="Eb1">Eb</option>
+                  <option value="E1">E</option>
+                  <option value="F1">F</option>
+                  <option value="Gb1">Gb</option>
+                  <option value="G1">G</option>
+                  <option value="Ab1">Ab</option>
+                  <option value="A1">A</option>
+                  <option value="Bb1">Bb</option>
+                  <option value="B1">B</option>
+                </select>
+              </label>
+
+              <label class="toggle-row">
+                <input id="bar-root-split" type="checkbox">
+                <span>Split half bar</span>
+              </label>
+
+              <label id="bar-root-secondary-wrap">
+                Second half
+                <select id="bar-root-secondary">
+                  <option value="C1" selected>C</option>
+                  <option value="Db1">Db</option>
+                  <option value="D1">D</option>
+                  <option value="Eb1">Eb</option>
+                  <option value="E1">E</option>
+                  <option value="F1">F</option>
+                  <option value="Gb1">Gb</option>
+                  <option value="G1">G</option>
+                  <option value="Ab1">Ab</option>
+                  <option value="A1">A</option>
+                  <option value="Bb1">Bb</option>
+                  <option value="B1">B</option>
+                </select>
+              </label>
+
+              <button id="save-bar-root" class="secondary-button" type="button">Set</button>
+              <button id="clear-bar-root" class="secondary-button" type="button">Clear</button>
             </div>
 
-            <label>
-              Whole bar
-              <select id="bar-root-primary">
-                <option value="C1" selected>C</option>
-                <option value="Db1">Db</option>
-                <option value="D1">D</option>
-                <option value="Eb1">Eb</option>
-                <option value="E1">E</option>
-                <option value="F1">F</option>
-                <option value="Gb1">Gb</option>
-                <option value="G1">G</option>
-                <option value="Ab1">Ab</option>
-                <option value="A1">A</option>
-                <option value="Bb1">Bb</option>
-                <option value="B1">B</option>
-              </select>
-            </label>
+            <div id="bass-settings-panel" class="bass-settings-panel" aria-label="Bass controls" hidden>
+              <label>
+                Bass style
+                <select id="bass-style">
+                  <option value="ballad" selected>Whole notes</option>
+                  <option value="walking">Walking bass</option>
+                  <option value="jazz">Jazz quarter pulse</option>
+                </select>
+              </label>
 
-            <label class="toggle-row">
-              <input id="bar-root-split" type="checkbox">
-              <span>Split half bar</span>
-            </label>
-
-            <label id="bar-root-secondary-wrap">
-              Second half
-              <select id="bar-root-secondary">
-                <option value="C1" selected>C</option>
-                <option value="Db1">Db</option>
-                <option value="D1">D</option>
-                <option value="Eb1">Eb</option>
-                <option value="E1">E</option>
-                <option value="F1">F</option>
-                <option value="Gb1">Gb</option>
-                <option value="G1">G</option>
-                <option value="Ab1">Ab</option>
-                <option value="A1">A</option>
-                <option value="Bb1">Bb</option>
-                <option value="B1">B</option>
-              </select>
-            </label>
-
-            <button id="save-bar-root" class="secondary-button" type="button">Set</button>
-            <button id="clear-bar-root" class="secondary-button" type="button">Clear</button>
+              <label>
+                Bass octave
+                <select id="bass-octave">
+                  <option value="-12">-1 octave</option>
+                  <option value="0" selected>Normal</option>
+                  <option value="12">+1 octave</option>
+                </select>
+              </label>
+            </div>
           </div>
-
-          <div id="bass-settings-panel" class="bass-settings-panel" aria-label="Bass controls" hidden>
-            <label>
-              Bass style
-              <select id="bass-style">
-                <option value="ballad" selected>Whole notes</option>
-                <option value="walking">Walking bass</option>
-                <option value="jazz">Jazz quarter pulse</option>
-              </select>
-            </label>
-
-            <label>
-              Bass octave
-              <select id="bass-octave">
-                <option value="-12">-1 octave</option>
-                <option value="0" selected>Normal</option>
-                <option value="12">+1 octave</option>
-              </select>
-            </label>
-          </div>
-        </div>
         </section>
       </section>
       <div id="runtime-status" class="sr-only" aria-live="polite">Ready</div>
     </main>
 
-    <script src="core.js?v=iteration-2p"></script>
-    <script src="app.js?v=iteration-2q"></script>
+    <script src="core.js?v=iteration-2t"></script>
+    <script src="app.js?v=iteration-2u"></script>
   </body>
 </html>

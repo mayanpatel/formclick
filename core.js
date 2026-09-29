@@ -92,6 +92,15 @@
     };
   }
 
+  function isClickGapBeat(beatIndex, beatsPerBar, gapBars) {
+    if (beatIndex < 0 || !Number.isInteger(gapBars) || gapBars < 1) {
+      return false;
+    }
+
+    const barNumber = Math.floor(beatIndex / beatsPerBar);
+    return Math.floor(barNumber / gapBars) % 2 === 1;
+  }
+
   function getTradingOptions(totalBars) {
     if (totalBars === 8 || totalBars === 12) {
       return [
@@ -222,6 +231,7 @@
     getTotalBars,
     getTradeBlockBars,
     getTradingOptions,
+    isClickGapBeat,
     isTradingMuteBar,
     normalizeSongSections,
     resolveSongFormDefinition,
