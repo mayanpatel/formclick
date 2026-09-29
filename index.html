@@ -10,7 +10,7 @@
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>FormClick</title>
-    <link rel="stylesheet" href="styles.css?v=iteration-2o">
+    <link rel="stylesheet" href="styles.css?v=iteration-2p">
   </head>
   <body>
     <main class="app-shell">
@@ -55,9 +55,11 @@
           <div class="tempo-cluster">
             <label for="bpm">BPM</label>
             <div class="tempo-row">
+              <button id="bpm-down-ten" class="icon-button tempo-step-ten" type="button" aria-label="Decrease BPM by 10">−10</button>
               <button id="bpm-down" class="icon-button" type="button" aria-label="Decrease BPM">−</button>
               <input id="bpm" type="text" inputmode="numeric" pattern="[0-9]*" value="140" aria-label="BPM">
               <button id="bpm-up" class="icon-button" type="button" aria-label="Increase BPM">+</button>
+              <button id="bpm-up-ten" class="icon-button tempo-step-ten" type="button" aria-label="Increase BPM by 10">+10</button>
             </div>
             <input id="bpm-range" type="range" min="30" max="320" step="1" value="140" aria-label="BPM slider">
             <button id="tap-tempo" class="secondary-button" type="button">Tap Tempo</button>
@@ -411,7 +413,7 @@
       <div id="runtime-status" class="sr-only" aria-live="polite">Ready</div>
     </main>
 
-    <script src="core.js?v=iteration-2o"></script>
-    <script src="app.js?v=iteration-2o"></script>
+    <script src="core.js?v=iteration-2p"></script>
+    <script src="app.js?v=iteration-2q"></script>
   </body>
 </html>

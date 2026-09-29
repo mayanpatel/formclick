@@ -9,7 +9,7 @@ Version 2.0 turns the prototype into a more complete, installable practice tool 
 Included:
 
 - Start and stop transport.
-- BPM input, buttons, slider, and tap tempo.
+- BPM input, ±1 and ±10 buttons, slider, and tap tempo.
 - Time signature selection.
 - Count-in with numeric countdown in the bar readout.
 - Click modes: quarter notes, 2 & 4, beat 1 only, barline only, and off.
@@ -18,7 +18,7 @@ Included:
 - Optional top-of-chorus bell.
 - Jazz form grid with section labels, current bar highlight, chorus count, and next-section indicator.
 - Built-in form presets: 12-bar blues, 32-bar AABA, 32-bar ABAC, rhythm changes, 16-bar tune, and modal/vamp.
-- Song preset layer with Autumn Leaves in G minor, Sunny Side of the Street in C major, and Blue Bossa in C minor.
+- Song presets for Autumn Leaves, Sunny Side of the Street, Blue Bossa, I Got Rhythm, and Have You Met Miss Jones.
 - Song dropdown is populated from `songs.json`.
 - Song presets automatically enable Bass editor.
 - Song presets set a recommended bass octave.
@@ -92,7 +92,7 @@ When opening the app directly as a `file://` page, some browsers block loading J
 ## v2.0 Check
 
 - Start and stop the metronome.
-- Change BPM with the buttons, input, slider, and tap tempo.
+- Change BPM with the ±1 and ±10 buttons, input, slider, and tap tempo. Check that the number and slider stay in sync at the 30 and 320 BPM limits.
 - Try click modes: quarter notes, 2 & 4, beat 1 only, and barline only.
 - Set Click to Off and confirm cue intervals still sound.
 - Switch form presets and confirm the grid, section, bar, beat, chorus, and next-section readouts update.

@@ -217,8 +217,8 @@ h2 {
 
 .tempo-row {
   display: grid;
-  grid-template-columns: 46px 1fr 46px;
-  gap: 8px;
+  grid-template-columns: repeat(2, 44px) minmax(64px, 1fr) repeat(2, 44px);
+  gap: 4px;
 }
 
 .icon-button,
@@ -234,9 +234,23 @@ input[type="text"] {
   font-weight: 900;
 }
 
+.tempo-step-ten {
+  font-size: 0.95rem;
+}
+
 .secondary-button {
   color: var(--text);
   font-weight: 800;
+}
+
+@media (max-width: 310px) {
+  .tempo-row {
+    grid-template-columns: repeat(2, 38px) minmax(50px, 1fr) repeat(2, 38px);
+  }
+
+  .tempo-row #bpm {
+    font-size: 1.6rem;
+  }
 }
 
 #bpm {

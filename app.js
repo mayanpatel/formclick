@@ -119,6 +119,37 @@ const fallbackSongPresets = {
       ["C1"], ["C1"], ["F1"], ["F1"], ["D1"], ["G1"], ["C1"], ["C1"],
       ["Eb1"], ["Ab1"], ["Db1"], ["Db1"], ["D1"], ["G1"], ["C1"], ["G1"]
     ]
+  },
+  iGotRhythmBb: {
+    title: "I Got Rhythm",
+    key: "Bb major",
+    formKey: "rhythm32",
+    bpm: 180,
+    bassOctave: 0,
+    roots: [
+      ["Bb1", "G1"], ["C1", "F1"], ["Bb1", "G1"], ["C1", "F1"],
+      ["Bb1"], ["Eb1"], ["Bb1", "G1"], ["C1", "F1"],
+      ["Bb1", "G1"], ["C1", "F1"], ["Bb1", "G1"], ["C1", "F1"],
+      ["Bb1"], ["Eb1"], ["Bb1", "G1"], ["C1", "F1"],
+      ["D1"], ["D1"], ["G1"], ["G1"], ["C1"], ["C1"], ["F1"], ["F1"],
+      ["Bb1", "G1"], ["C1", "F1"], ["Bb1", "G1"], ["C1", "F1"],
+      ["Bb1"], ["Eb1"], ["Bb1", "G1"], ["C1", "F1"]
+    ]
+  },
+  haveYouMetMissJonesF: {
+    title: "Have You Met Miss Jones",
+    key: "F major",
+    formKey: "aaba32",
+    bpm: 160,
+    bassOctave: 0,
+    roots: [
+      ["F1"], ["Gb1"], ["G1"], ["C1"], ["A1"], ["D1"], ["G1"], ["C1"],
+      ["F1"], ["Gb1"], ["G1"], ["C1"], ["A1"], ["D1"], ["C1"], ["F1"],
+      ["Bb1"], ["Ab1", "Db1"], ["Gb1"], ["E1", "A1"],
+      ["D1"], ["Ab1", "Db1"], ["Gb1"], ["G1", "C1"],
+      ["F1"], ["Gb1"], ["G1"], ["C1"],
+      ["A1", "D1"], ["G1", "C1"], ["F1"], ["G1", "C1"]
+    ]
   }
 };
 
@@ -130,8 +161,10 @@ const els = {
   transportLabel: document.querySelector("#transport-label"),
   bpm: document.querySelector("#bpm"),
   bpmRange: document.querySelector("#bpm-range"),
+  bpmDownTen: document.querySelector("#bpm-down-ten"),
   bpmDown: document.querySelector("#bpm-down"),
   bpmUp: document.querySelector("#bpm-up"),
+  bpmUpTen: document.querySelector("#bpm-up-ten"),
   tapTempo: document.querySelector("#tap-tempo"),
   formPreset: document.querySelector("#form-preset"),
   songPreset: document.querySelector("#song-preset"),
@@ -2476,8 +2509,10 @@ function bindEvents() {
   els.bpm.addEventListener("blur", commitBpmInput);
   els.bpm.addEventListener("keydown", handleBpmKeydown);
   els.bpmRange.addEventListener("input", () => setBpm(Number(els.bpmRange.value)));
+  els.bpmDownTen.addEventListener("click", () => changeBpm(-10));
   els.bpmDown.addEventListener("click", () => changeBpm(-1));
   els.bpmUp.addEventListener("click", () => changeBpm(1));
+  els.bpmUpTen.addEventListener("click", () => changeBpm(10));
   els.tapTempo.addEventListener("click", handleTapTempo);
   els.formGrid.addEventListener("click", handleFormGridClick);
   els.rootEditEnabled.addEventListener("change", () => {
