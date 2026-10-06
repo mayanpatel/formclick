@@ -1,8 +1,8 @@
-const cacheName = "formclick-v30";
+const cacheName = "formclick-v31";
 const appFiles = [
   "./",
   "./index.html",
-  "./styles.css",
+  "./styles.css?v=tempo-layout-1",
   "./core.js",
   "./app.js",
   "./songs.json",
